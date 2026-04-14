@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
 # ================================
 # CONFIG
@@ -28,8 +29,10 @@ Analisis ini bertujuan untuk memahami:
 # ================================
 @st.cache_data
 def load_data():
-    customers = pd.read_csv("olist_customers_dataset.csv")
-    orders = pd.read_csv("olist_orders_dataset.csv")
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    customers = pd.read_csv(os.path.join(BASE_DIR, "../data/olist_customers_dataset.csv"))
+    orders = pd.read_csv(os.path.join(BASE_DIR, "../data/olist_orders_dataset.csv"))
 
     orders['order_purchase_timestamp'] = pd.to_datetime(
         orders['order_purchase_timestamp']
@@ -117,14 +120,16 @@ with col1:
     top_city = df['customer_city'].value_counts().head(10).reset_index()
     top_city.columns = ['city', 'count']
 
-    fig_city = px.bar(top_city, x='count', y='city', orientation='h')
+    fig_city = px.bar(top_city, x='count', y='city', orientation='h',
+                      title="Top 10 City")
     st.plotly_chart(fig_city, use_container_width=True)
 
 with col2:
     top_state = df['customer_state'].value_counts().head(10).reset_index()
     top_state.columns = ['state', 'count']
 
-    fig_state = px.bar(top_state, x='count', y='state', orientation='h')
+    fig_state = px.bar(top_state, x='count', y='state', orientation='h',
+                       title="Top 10 State")
     st.plotly_chart(fig_state, use_container_width=True)
 
 # ================================
@@ -146,14 +151,14 @@ fig_geo = px.choropleth(
 st.plotly_chart(fig_geo, use_container_width=True)
 
 st.info("""
- Insight:
+📌 Insight:
 - Order tidak merata antar state
 - Beberapa state mendominasi transaksi
 - Potensi ekspansi ada di wilayah dengan order rendah
 """)
 
 # ================================
-# RFM ANALYSIS (WAJIB NILAI TINGGI)
+# RFM ANALYSIS
 # ================================
 st.markdown("## RFM Customer Analysis")
 
@@ -166,13 +171,13 @@ rfm = df.groupby('customer_unique_id').agg({
 
 rfm.columns = ['customer_id', 'recency', 'frequency']
 
-# scoring
-rfm['R_score'] = pd.qcut(rfm['recency'], 4, labels=[4,3,2,1])
-rfm['F_score'] = pd.qcut(rfm['frequency'].rank(method='first'), 4, labels=[1,2,3,4])
+# Scoring
+rfm['R_score'] = pd.qcut(rfm['recency'], 4, labels=[4, 3, 2, 1])
+rfm['F_score'] = pd.qcut(rfm['frequency'].rank(method='first'), 4, labels=[1, 2, 3, 4])
 
 rfm['RFM_Score'] = rfm['R_score'].astype(str) + rfm['F_score'].astype(str)
 
-# visual
+# Visual
 fig_rfm = px.scatter(
     rfm,
     x='recency',
@@ -184,7 +189,7 @@ fig_rfm = px.scatter(
 st.plotly_chart(fig_rfm, use_container_width=True)
 
 st.info("""
- Insight RFM:
+📌 Insight RFM:
 - Customer loyal memiliki frequency tinggi & recency rendah
 - Banyak customer hanya membeli sekali
 - Strategi retensi sangat penting
@@ -196,12 +201,13 @@ st.info("""
 st.markdown("## Conclusion")
 
 st.success("""
+✅ Temuan:
 - Penjualan menunjukkan tren fluktuatif namun stabil
 - Customer didominasi pembeli sekali transaksi
 - Terdapat customer loyal yang bisa ditargetkan ulang
 - Distribusi geografis tidak merata
 
- Rekomendasi:
+🎯 Rekomendasi:
 - Fokus retensi customer
 - Promo untuk repeat customer
 - Ekspansi ke wilayah dengan demand rendah
