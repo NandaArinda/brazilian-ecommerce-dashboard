@@ -151,7 +151,7 @@ fig_geo = px.choropleth(
 st.plotly_chart(fig_geo, use_container_width=True)
 
 st.info("""
-📌 Insight:
+ Insight:
 - Order tidak merata antar state
 - Beberapa state mendominasi transaksi
 - Potensi ekspansi ada di wilayah dengan order rendah
