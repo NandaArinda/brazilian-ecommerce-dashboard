@@ -189,7 +189,7 @@ fig_rfm = px.scatter(
 st.plotly_chart(fig_rfm, use_container_width=True)
 
 st.info("""
-📌 Insight RFM:
+ Insight RFM:
 - Customer loyal memiliki frequency tinggi & recency rendah
 - Banyak customer hanya membeli sekali
 - Strategi retensi sangat penting
@@ -201,13 +201,13 @@ st.info("""
 st.markdown("## Conclusion")
 
 st.success("""
-✅ Temuan:
+ Temuan:
 - Penjualan menunjukkan tren fluktuatif namun stabil
 - Customer didominasi pembeli sekali transaksi
 - Terdapat customer loyal yang bisa ditargetkan ulang
 - Distribusi geografis tidak merata
 
-🎯 Rekomendasi:
+ Rekomendasi:
 - Fokus retensi customer
 - Promo untuk repeat customer
 - Ekspansi ke wilayah dengan demand rendah
