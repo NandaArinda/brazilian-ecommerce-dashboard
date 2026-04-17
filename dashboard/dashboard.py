@@ -1,28 +1,50 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import os
 
 # ================================
-# CONFIG
+# PAGE CONFIG
 # ================================
 st.set_page_config(page_title="E-Commerce Dashboard Brazil", layout="wide")
 
 # ================================
-# HEADER STORYTELLING
+# MODERN UI STYLE
 # ================================
 st.markdown("""
-# Brazilian E-Commerce Dashboard
+<style>
+    .main {
+        background-color: #0f172a;
+        color: white;
+    }
 
-## Business Understanding
-Analisis ini bertujuan untuk memahami:
-- Tren penjualan
-- Perilaku customer
-- Segmentasi pelanggan (RFM Analysis)
-- Distribusi geografis pelanggan
+    .block-container {
+        padding-top: 2rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
 
----
-""")
+    h1, h2, h3 {
+        color: #ffffff;
+    }
+
+    div[data-testid="metric-container"] {
+        background-color: #1e293b;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ================================
+# HEADER
+# ================================
+st.title(" E-Commerce Analytics Dashboard")
+st.caption("Brazil Olist Dataset | Interactive Business Intelligence Dashboard")
+
+st.markdown("---")
 
 # ================================
 # LOAD DATA
@@ -30,191 +52,180 @@ Analisis ini bertujuan untuk memahami:
 @st.cache_data
 def load_data():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(BASE_DIR, "data", "main_data.csv")
 
-    customers = pd.read_csv(os.path.join(BASE_DIR, "../data/olist_customers_dataset.csv"))
-    orders = pd.read_csv(os.path.join(BASE_DIR, "../data/olist_orders_dataset.csv"))
-
-    orders['order_purchase_timestamp'] = pd.to_datetime(
-        orders['order_purchase_timestamp']
-    )
-
-    df = pd.merge(orders, customers, on="customer_id")
+    df = pd.read_csv(file_path)
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     return df
 
 df = load_data()
 
 # ================================
-# SIDEBAR FILTER
+# SIDEBAR FILTER (REAL-TIME)
 # ================================
-st.sidebar.header("Filter Data")
+st.sidebar.header(" Filter Data")
 
-state_filter = st.sidebar.multiselect(
-    "Pilih State",
-    df['customer_state'].unique(),
-    default=df['customer_state'].unique()
+min_date = df['order_purchase_timestamp'].min().date()
+max_date = df['order_purchase_timestamp'].max().date()
+
+date_range = st.sidebar.date_input(
+    "Rentang Tanggal",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date,
+    key="date_filter"
 )
 
-df = df[df['customer_state'].isin(state_filter)]
+state_options = sorted(df['customer_state'].dropna().unique())
+
+state_filter = st.sidebar.multiselect(
+    "Filter State",
+    options=state_options,
+    default=state_options,
+    key="state_filter"
+)
 
 # ================================
-# METRICS
+# FILTER ENGINE (SAFE)
 # ================================
-st.markdown("## Ringkasan Data")
+filtered_df = df.copy()
+
+if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
+    start_date, end_date = date_range
+    filtered_df = filtered_df[
+        (filtered_df['order_purchase_timestamp'].dt.date >= start_date) &
+        (filtered_df['order_purchase_timestamp'].dt.date <= end_date)
+    ]
+
+if state_filter:
+    filtered_df = filtered_df[
+        filtered_df['customer_state'].isin(state_filter)
+    ]
+
+# safety check
+if filtered_df.empty:
+    st.warning("Data kosong untuk filter yang dipilih.")
+    st.stop()
+
+st.caption(" Real-time dashboard update aktif")
+
+st.markdown("---")
+
+# ================================
+# KPI METRICS
+# ================================
+st.subheader(" Key Performance Indicator")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("Total Orders", df['order_id'].nunique())
-col2.metric("Total Customers", df['customer_unique_id'].nunique())
-col3.metric("Total City", df['customer_city'].nunique())
+col1.metric(" Total Orders", f"{filtered_df['order_id'].nunique():,}")
+col2.metric(" Total Customers", f"{filtered_df['customer_unique_id'].nunique():,}")
+col3.metric(" Total Cities", f"{filtered_df['customer_city'].nunique():,}")
+
+st.markdown("---")
 
 # ================================
-# TREN BULANAN
+# TREND ORDER
 # ================================
-st.markdown("## Tren Order Bulanan")
+st.subheader(" Order Trend Analysis")
 
-df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
+filtered_df['month'] = filtered_df['order_purchase_timestamp'].dt.to_period('M').astype(str)
 
-monthly_orders = df.groupby('month', as_index=False)['order_id'].nunique()
+monthly_orders = filtered_df.groupby('month', as_index=False)['order_id'].nunique()
+monthly_orders.columns = ['Bulan', 'Jumlah Order']
 
-fig_month = px.line(
-    monthly_orders,
-    x='month',
-    y='order_id',
-    markers=True,
-    title="Tren Order Bulanan"
-)
+peak = monthly_orders.loc[monthly_orders['Jumlah Order'].idxmax()]
 
-st.plotly_chart(fig_month, use_container_width=True)
+fig1 = go.Figure()
+fig1.add_trace(go.Scatter(
+    x=monthly_orders['Bulan'],
+    y=monthly_orders['Jumlah Order'],
+    mode='lines+markers',
+    name='Orders'
+))
 
-# ================================
-# TREN HARIAN + MOVING AVERAGE
-# ================================
-st.markdown("## Tren Harian + Moving Average")
-
-df['date'] = df['order_purchase_timestamp'].dt.floor('D')
-
-daily_orders = df.groupby('date', as_index=False)['order_id'].nunique()
-
-daily_orders['rolling_avg'] = daily_orders['order_id'].rolling(
-    window=7,
-    min_periods=1
-).mean()
-
-fig_daily = px.line(
-    daily_orders,
-    x='date',
-    y=['order_id', 'rolling_avg'],
-    title="Tren Harian + Moving Average"
-)
-
-st.plotly_chart(fig_daily, use_container_width=True)
-
-# ================================
-# TOP CITY & STATE
-# ================================
-st.markdown("## Top City & State")
+fig1.add_trace(go.Scatter(
+    x=[peak['Bulan']],
+    y=[peak['Jumlah Order']],
+    mode='markers+text',
+    marker=dict(color='red', size=12),
+    text=["Puncak"],
+    textposition="top center"
+))
 
 col1, col2 = st.columns(2)
 
 with col1:
-    top_city = df['customer_city'].value_counts().head(10).reset_index()
-    top_city.columns = ['city', 'count']
-
-    fig_city = px.bar(top_city, x='count', y='city', orientation='h',
-                      title="Top 10 City")
-    st.plotly_chart(fig_city, use_container_width=True)
+    st.plotly_chart(fig1, use_container_width=True, key="chart_month")
 
 with col2:
-    top_state = df['customer_state'].value_counts().head(10).reset_index()
-    top_state.columns = ['state', 'count']
+    st.info(f"""
+     Insight:
+    - Peak Month: **{peak['Bulan']}**
+    - Total Orders: **{peak['Jumlah Order']}**
+    """)
 
-    fig_state = px.bar(top_state, x='count', y='state', orientation='h',
-                       title="Top 10 State")
-    st.plotly_chart(fig_state, use_container_width=True)
+st.markdown("---")
 
 # ================================
-# GEOSPATIAL ANALYSIS
+# TOP CITY
 # ================================
-st.markdown("## Geospatial Analysis")
+st.subheader(" Top 10 Cities")
 
-state_orders = df['customer_state'].value_counts().reset_index()
-state_orders.columns = ['state', 'orders']
+top_city = filtered_df['customer_city'].value_counts().head(10).reset_index()
+top_city.columns = ['Kota', 'Jumlah Customer']
 
-fig_geo = px.choropleth(
-    state_orders,
-    locations='state',
-    locationmode='USA-states',
-    color='orders',
-    title="Distribusi Order per State"
-)
+total_customer = filtered_df['customer_unique_id'].nunique()
 
-st.plotly_chart(fig_geo, use_container_width=True)
+top_city['Persentase'] = (top_city['Jumlah Customer'] / total_customer * 100).round(2)
+top_city = top_city.sort_values('Jumlah Customer')
 
-st.info("""
- Insight:
-- Order tidak merata antar state
-- Beberapa state mendominasi transaksi
-- Potensi ekspansi ada di wilayah dengan order rendah
-""")
+fig2 = go.Figure(go.Bar(
+    x=top_city['Jumlah Customer'],
+    y=top_city['Kota'],
+    orientation='h',
+    text=top_city['Persentase'].astype(str) + "%",
+    textposition="outside"
+))
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.plotly_chart(fig2, use_container_width=True, key="chart_city")
+
+with col2:
+    st.info(" Kota dengan customer terbanyak menunjukkan area market utama. Fokuskan strategi retensi & ekspansi.")
+
+st.markdown("---")
 
 # ================================
 # RFM ANALYSIS
 # ================================
-st.markdown("## RFM Customer Analysis")
+st.subheader(" Customer Segmentation (RFM)")
 
-snapshot_date = df['order_purchase_timestamp'].max()
+snapshot = filtered_df['order_purchase_timestamp'].max()
 
-rfm = df.groupby('customer_unique_id').agg({
-    'order_purchase_timestamp': lambda x: (snapshot_date - x.max()).days,
-    'order_id': 'nunique'
-}).reset_index()
+rfm = filtered_df.groupby('customer_unique_id').agg(
+    recency=('order_purchase_timestamp', lambda x: (snapshot - x.max()).days),
+    frequency=('order_id', 'nunique')
+).reset_index()
 
-rfm.columns = ['customer_id', 'recency', 'frequency']
-
-# Scoring
 rfm['R_score'] = pd.qcut(rfm['recency'], 4, labels=[4, 3, 2, 1])
 rfm['F_score'] = pd.qcut(rfm['frequency'].rank(method='first'), 4, labels=[1, 2, 3, 4])
-
 rfm['RFM_Score'] = rfm['R_score'].astype(str) + rfm['F_score'].astype(str)
 
-# Visual
-fig_rfm = px.scatter(
+fig3 = px.scatter(
     rfm,
     x='recency',
     y='frequency',
     size='frequency',
+    color='RFM_Score',
     title="RFM Segmentation"
 )
 
-st.plotly_chart(fig_rfm, use_container_width=True)
+st.plotly_chart(fig3, use_container_width=True, key="chart_rfm")
 
-st.info("""
- Insight RFM:
-- Customer loyal memiliki frequency tinggi & recency rendah
-- Banyak customer hanya membeli sekali
-- Strategi retensi sangat penting
-""")
-
-# ================================
-# INSIGHT & CONCLUSION
-# ================================
-st.markdown("## Conclusion")
-
-st.success("""
- Temuan:
-- Penjualan menunjukkan tren fluktuatif namun stabil
-- Customer didominasi pembeli sekali transaksi
-- Terdapat customer loyal yang bisa ditargetkan ulang
-- Distribusi geografis tidak merata
-
- Rekomendasi:
-- Fokus retensi customer
-- Promo untuk repeat customer
-- Ekspansi ke wilayah dengan demand rendah
-""")
-
-# ================================
-# FOOTER
-# ================================
 st.markdown("---")
-st.caption("Dashboard by Nanda Dwi Arinda")
+
+
+st.caption("Dashboard by Nanda Dwi Arinda | Olist Dataset")
