@@ -53,7 +53,7 @@ st.markdown("---")
 def load_data():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
-    file_path = os.path.join(BASE_DIR, "..", "data", "main_data.csv")
+    file_path = os.path.join(BASE_DIR, "data/main_data.csv")
 
     df = pd.read_csv(file_path)
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
