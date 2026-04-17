@@ -56,17 +56,14 @@ def load_data():
     
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-    # dua kemungkinan lokasi file
     path1 = os.path.join(BASE_DIR, "data/main_data.csv")
     path2 = os.path.join(BASE_DIR, "../data/main_data.csv")
 
-    # pilih yang ada
     file_path = path1 if os.path.exists(path1) else path2
 
     df = pd.read_csv(file_path)
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     
-    return dfrchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     return df
 df = load_data()
 
