@@ -53,18 +53,24 @@ st.markdown("---")
 def load_data():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-    path1 = os.path.join(BASE_DIR, "data/main_data.csv")
-    path2 = os.path.join(BASE_DIR, "../data/main_data.csv")
+    possible_paths = [
+        os.path.join(BASE_DIR, "main_data.csv"),
+        os.path.join(BASE_DIR, "data/main_data.csv"),
+        os.path.join(BASE_DIR, "../data/main_data.csv"),
+    ]
 
-    file_path = path1 if os.path.exists(path1) else path2
+    file_path = next((p for p in possible_paths if os.path.exists(p)), None)
+
+    if file_path is None:
+        st.error("File main_data.csv tidak ditemukan!")
+        st.stop()
 
     df = pd.read_csv(file_path)
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
-    
+
     return df
 
 df = load_data()
-
 # ================================
 # SIDEBAR FILTER (UPDATED 🔥)
 # ================================
