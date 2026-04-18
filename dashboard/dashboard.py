@@ -51,9 +51,6 @@ st.markdown("---")
 # ================================
 @st.cache_data
 def load_data():
-    import os
-    import pandas as pd
-    
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     path1 = os.path.join(BASE_DIR, "data/main_data.csv")
@@ -65,10 +62,11 @@ def load_data():
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     
     return df
+
 df = load_data()
 
 # ================================
-# SIDEBAR FILTER (REAL-TIME)
+# SIDEBAR FILTER (UPDATED 🔥)
 # ================================
 st.sidebar.header(" Filter Data")
 
@@ -83,20 +81,23 @@ date_range = st.sidebar.date_input(
     key="date_filter"
 )
 
+# 🔥 TAMBAHAN ALL STATE
 state_options = sorted(df['customer_state'].dropna().unique())
+state_options_with_all = ["All State"] + state_options
 
 state_filter = st.sidebar.multiselect(
     "Filter State",
-    options=state_options,
-    default=state_options,
+    options=state_options_with_all,
+    default=["All State"],
     key="state_filter"
 )
 
 # ================================
-# FILTER ENGINE (SAFE)
+# FILTER ENGINE (UPDATED 🔥)
 # ================================
 filtered_df = df.copy()
 
+# filter tanggal
 if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
     start_date, end_date = date_range
     filtered_df = filtered_df[
@@ -104,7 +105,8 @@ if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
         (filtered_df['order_purchase_timestamp'].dt.date <= end_date)
     ]
 
-if state_filter:
+# 🔥 LOGIC ALL STATE
+if "All State" not in state_filter:
     filtered_df = filtered_df[
         filtered_df['customer_state'].isin(state_filter)
     ]
@@ -167,7 +169,6 @@ with col1:
 
 with col2:
     st.info(f"""
-     Insight:
     - Peak Month: **{peak['Bulan']}**
     - Total Orders: **{peak['Jumlah Order']}**
     """)
@@ -177,22 +178,27 @@ st.markdown("---")
 # ================================
 # TOP CITY
 # ================================
-st.subheader(" Top 10 Cities")
+st.subheader(" Top 10 Cities (2017–2018)")
 
-top_city = filtered_df['customer_city'].value_counts().head(10).reset_index()
+filtered_df['year'] = filtered_df['order_purchase_timestamp'].dt.year
+df_city = filtered_df[filtered_df['year'].isin([2017, 2018])]
+
+top_city = df_city['customer_city'].value_counts().head(10).reset_index()
 top_city.columns = ['Kota', 'Jumlah Customer']
 
-total_customer = filtered_df['customer_unique_id'].nunique()
+total_customer = df_city['customer_unique_id'].nunique()
 
 top_city['Persentase'] = (top_city['Jumlah Customer'] / total_customer * 100).round(2)
 top_city = top_city.sort_values('Jumlah Customer')
+
+top1 = top_city.iloc[-1]
 
 fig2 = go.Figure(go.Bar(
     x=top_city['Jumlah Customer'],
     y=top_city['Kota'],
     orientation='h',
     text=top_city['Persentase'].astype(str) + "%",
-    textposition="outside"
+    textposition="inside"
 ))
 
 col1, col2 = st.columns(2)
@@ -201,7 +207,9 @@ with col1:
     st.plotly_chart(fig2, use_container_width=True, key="chart_city")
 
 with col2:
-    st.info(" Kota dengan customer terbanyak menunjukkan area market utama. Fokuskan strategi retensi & ekspansi.")
+    st.info(f"""
+    - Top city: **{top1['Kota']}**
+    """)
 
 st.markdown("---")
 
@@ -233,6 +241,5 @@ fig3 = px.scatter(
 st.plotly_chart(fig3, use_container_width=True, key="chart_rfm")
 
 st.markdown("---")
-
 
 st.caption("Dashboard by Nanda Dwi Arinda | Olist Dataset")
