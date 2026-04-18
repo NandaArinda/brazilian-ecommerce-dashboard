@@ -220,32 +220,51 @@ with col2:
 st.markdown("---")
 
 # ================================
-# RFM ANALYSIS
+# DELIVERY TIME ANALYSIS
 # ================================
-st.subheader(" Customer Segmentation (RFM)")
+st.subheader(" Delivery Time Analysis")
 
-snapshot = filtered_df['order_purchase_timestamp'].max()
+# konversi kolom tanggal
+delivery_df = filtered_df.copy()
+delivery_df['order_delivered_customer_date'] = pd.to_datetime(delivery_df['order_delivered_customer_date'])
 
-rfm = filtered_df.groupby('customer_unique_id').agg(
-    recency=('order_purchase_timestamp', lambda x: (snapshot - x.max()).days),
-    frequency=('order_id', 'nunique')
-).reset_index()
+# hitung delivery time (hari)
+delivery_df['delivery_days'] = (
+    delivery_df['order_delivered_customer_date'] - delivery_df['order_purchase_timestamp']
+).dt.days
 
-rfm['R_score'] = pd.qcut(rfm['recency'], 4, labels=[4, 3, 2, 1])
-rfm['F_score'] = pd.qcut(rfm['frequency'].rank(method='first'), 4, labels=[1, 2, 3, 4])
-rfm['RFM_Score'] = rfm['R_score'].astype(str) + rfm['F_score'].astype(str)
+# hapus yang null (belum delivered)
+delivery_df = delivery_df.dropna(subset=['delivery_days'])
+delivery_df = delivery_df[delivery_df['delivery_days'] > 0]
 
-fig3 = px.scatter(
-    rfm,
-    x='recency',
-    y='frequency',
-    size='frequency',
-    color='RFM_Score',
-    title="RFM Segmentation"
+# rata-rata delivery time per state
+avg_delivery = delivery_df.groupby('customer_state')['delivery_days'].mean().reset_index()
+avg_delivery.columns = ['State', 'Avg Delivery Days']
+avg_delivery = avg_delivery.sort_values('Avg Delivery Days', ascending=False)
+
+slowest = avg_delivery.iloc[0]
+fastest = avg_delivery.iloc[-1]
+
+fig_delivery = px.bar(
+    avg_delivery,
+    x='State',
+    y='Avg Delivery Days',
+    title='Rata-rata Waktu Pengiriman per State',
+    color='Avg Delivery Days',
+    color_continuous_scale='Reds'
 )
 
-st.plotly_chart(fig3, use_container_width=True, key="chart_rfm")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.plotly_chart(fig_delivery, use_container_width=True, key="chart_delivery")
+
+with col2:
+    st.info(f"""
+    -  Paling Lama: **{slowest['State']}** ({slowest['Avg Delivery Days']:.1f} hari)
+    -  Paling Cepat: **{fastest['State']}** ({fastest['Avg Delivery Days']:.1f} hari)
+    -  Total Order Delivered: **{len(delivery_df):,}**
+    """)
 
 st.markdown("---")
-
 st.caption("Dashboard by Nanda Dwi Arinda | Olist Dataset")
