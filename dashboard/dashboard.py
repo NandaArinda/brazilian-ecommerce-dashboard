@@ -72,7 +72,7 @@ def load_data():
 
 df = load_data()
 # ================================
-# SIDEBAR FILTER (UPDATED 🔥)
+# SIDEBAR FILTER 
 # ================================
 st.sidebar.header(" Filter Data")
 
@@ -99,7 +99,7 @@ state_filter = st.sidebar.multiselect(
 )
 
 # ================================
-# FILTER ENGINE (UPDATED 🔥)
+# FILTER ENGINE 
 # ================================
 filtered_df = df.copy()
 
@@ -184,87 +184,83 @@ st.markdown("---")
 # ================================
 # TOP CITY
 # ================================
-st.subheader(" Top 10 Cities (2017–2018)")
+st.subheader(" Top 10 Cities")
 
-filtered_df['year'] = filtered_df['order_purchase_timestamp'].dt.year
-df_city = filtered_df[filtered_df['year'].isin([2017, 2018])]
-
-top_city = df_city['customer_city'].value_counts().head(10).reset_index()
+top_city = filtered_df['customer_city'].value_counts().head(10).reset_index()
 top_city.columns = ['Kota', 'Jumlah Customer']
 
-total_customer = df_city['customer_unique_id'].nunique()
+if top_city.empty:
+    st.warning("Tidak ada data kota untuk filter yang dipilih.")
+else:
+    total_customer = filtered_df['customer_unique_id'].nunique()
+    top_city['Persentase'] = (top_city['Jumlah Customer'] / total_customer * 100).round(2)
+    top_city = top_city.sort_values('Jumlah Customer')
+    top1 = top_city.iloc[-1]
 
-top_city['Persentase'] = (top_city['Jumlah Customer'] / total_customer * 100).round(2)
-top_city = top_city.sort_values('Jumlah Customer')
+    fig2 = go.Figure(go.Bar(
+        x=top_city['Jumlah Customer'],
+        y=top_city['Kota'],
+        orientation='h',
+        text=top_city['Persentase'].astype(str) + "%",
+        textposition="inside"
+    ))
 
-top1 = top_city.iloc[-1]
+    col1, col2 = st.columns(2)
 
-fig2 = go.Figure(go.Bar(
-    x=top_city['Jumlah Customer'],
-    y=top_city['Kota'],
-    orientation='h',
-    text=top_city['Persentase'].astype(str) + "%",
-    textposition="inside"
-))
+    with col1:
+        st.plotly_chart(fig2, use_container_width=True, key="chart_city")
 
-col1, col2 = st.columns(2)
-
-with col1:
-    st.plotly_chart(fig2, use_container_width=True, key="chart_city")
-
-with col2:
-    st.info(f"""
-    - Top city: **{top1['Kota']}**
-    """)
+    with col2:
+        st.info(f"""
+        - Top city: **{top1['Kota']}**
+        """)
 
 st.markdown("---")
 
-# ================================
-# DELIVERY TIME ANALYSIS
-# ================================
-st.subheader(" Delivery Time Analysis")
+if 'order_delivered_customer_date' not in filtered_df.columns:
+    st.warning("Kolom delivery date tidak tersedia di data.")
+else:
+    # konversi kolom tanggal
+    delivery_df = filtered_df.copy()
+    delivery_df['order_delivered_customer_date'] = pd.to_datetime(delivery_df['order_delivered_customer_date'])
 
-# konversi kolom tanggal
-delivery_df = filtered_df.copy()
-delivery_df['order_delivered_customer_date'] = pd.to_datetime(delivery_df['order_delivered_customer_date'])
+    # hitung delivery time (hari)
+    delivery_df['delivery_days'] = (
+        delivery_df['order_delivered_customer_date'] - delivery_df['order_purchase_timestamp']
+    ).dt.days
 
-# hitung delivery time (hari)
-delivery_df['delivery_days'] = (
-    delivery_df['order_delivered_customer_date'] - delivery_df['order_purchase_timestamp']
-).dt.days
+    # hapus yang null (belum delivered)
+    delivery_df = delivery_df.dropna(subset=['delivery_days'])
+    delivery_df = delivery_df[delivery_df['delivery_days'] > 0]
 
-# hapus yang null (belum delivered)
-delivery_df = delivery_df.dropna(subset=['delivery_days'])
-delivery_df = delivery_df[delivery_df['delivery_days'] > 0]
+    # rata-rata delivery time per state
+    avg_delivery = delivery_df.groupby('customer_state')['delivery_days'].mean().reset_index()
+    avg_delivery.columns = ['State', 'Avg Delivery Days']
+    avg_delivery = avg_delivery.sort_values('Avg Delivery Days', ascending=False)
 
-# rata-rata delivery time per state
-avg_delivery = delivery_df.groupby('customer_state')['delivery_days'].mean().reset_index()
-avg_delivery.columns = ['State', 'Avg Delivery Days']
-avg_delivery = avg_delivery.sort_values('Avg Delivery Days', ascending=False)
+    slowest = avg_delivery.iloc[0]
+    fastest = avg_delivery.iloc[-1]
 
-slowest = avg_delivery.iloc[0]
-fastest = avg_delivery.iloc[-1]
+    fig_delivery = px.bar(
+        avg_delivery,
+        x='State',
+        y='Avg Delivery Days',
+        title='Rata-rata Waktu Pengiriman per State',
+        color='Avg Delivery Days',
+        color_continuous_scale='Reds'
+    )
 
-fig_delivery = px.bar(
-    avg_delivery,
-    x='State',
-    y='Avg Delivery Days',
-    title='Rata-rata Waktu Pengiriman per State',
-    color='Avg Delivery Days',
-    color_continuous_scale='Reds'
-)
+    col1, col2 = st.columns(2)
 
-col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(fig_delivery, use_container_width=True, key="chart_delivery")
 
-with col1:
-    st.plotly_chart(fig_delivery, use_container_width=True, key="chart_delivery")
-
-with col2:
-    st.info(f"""
-    -  Paling Lama: **{slowest['State']}** ({slowest['Avg Delivery Days']:.1f} hari)
-    -  Paling Cepat: **{fastest['State']}** ({fastest['Avg Delivery Days']:.1f} hari)
-    -  Total Order Delivered: **{len(delivery_df):,}**
-    """)
+    with col2:
+        st.info(f"""
+        -  Paling Lama: **{slowest['State']}** ({slowest['Avg Delivery Days']:.1f} hari)
+        -  Paling Cepat: **{fastest['State']}** ({fastest['Avg Delivery Days']:.1f} hari)
+        -  Total Order Delivered: **{len(delivery_df):,}**
+        """)
 
 st.markdown("---")
 st.caption("Dashboard by Nanda Dwi Arinda | Olist Dataset")
