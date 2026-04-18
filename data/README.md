@@ -1,44 +1,37 @@
 # Brazilian E-Commerce Dashboard
 
-## Project Overview
-Project ini bertujuan untuk menganalisis data e-commerce Brazil untuk memahami:
-- Tren penjualan
-- Perilaku pelanggan
-- Segmentasi pelanggan menggunakan RFM
-- Distribusi geografis pelanggan
+## Struktur Proyek
+brazilian-ecommerce-dashboard/
+│
+├── dashboard/
+│   └── dashboard.py
+│
+├── data/
+│   └── main_data.csv
+│
+├── requirements.txt
+└── README.md
 
 ---
 
-## Dataset
-- Olist Orders Dataset
-- Olist Customers Dataset
-- Olist Order Items Dataset
-
+## Setup Environment - Anaconda
+conda create --name main-ds python=3.9
+conda activate main-ds
+pip install -r requirements.txt
 ---
 
-## Analisis yang dilakukan
-- Exploratory Data Analysis (EDA)
-- Data Cleaning
-- RFM Analysis
-- Geospatial Analysis
+## Setup Environment - Shell/Terminal
+cd brazilian-ecommerce-dashboard
+pip install -r requirements.txt
 
----
+## Menjalankan Streamlit App
+Masuk ke folder dashboard:
+cd dashboard
 
-## Streamlit Dashboard
-Dashboard interaktif dibuat menggunakan Streamlit untuk visualisasi data.
+## Jalankan aplikasi:
+ python -m streamlit run dashboard.py
 
-🔗 Link App:
-https://your-app-name.streamlit.app
-
----
-
-## Tools
-- Python
-- Pandas
-- Streamlit
-- Plotly
-
----
-
+## Aplikasi dapat diakses melalui link berikut:
+https://brazilian-ecommerce-dashboard-un7a6pvznvyrqbvgvyghob.streamlit.app/
 ## Author
 Nanda Dwi Arinda
